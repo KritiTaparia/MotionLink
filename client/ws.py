@@ -5,6 +5,9 @@ import json
 import time
 from smbus2 import SMBus
 from gpiozero import LED
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BCM)
 
 # MPU-6050 Registers
 PWR_MGMT_1   = 0x6B
@@ -25,7 +28,9 @@ MACBOOK_SERVERS = [
 
 # Initialize I2C bus
 bus = SMBus(1)  # 1 indicates /dev/i2c-1
-LEDS = [LED(11), LED(13)]
+LED_PINS = [11, 13]
+for pin in LED_PINS:
+    GPIO.setup(pin, GPIO.OUT)
 
 def MPU_Init():
     """
@@ -130,7 +135,7 @@ async def main():
     uri = f"ws://{current_macbook['ip']}:{current_macbook['port']}"
     websocket = await connect_to_device(uri)
     if websocket:
-        LEDS[current_macbook_index].on()
+        GPIO.output(LED_PINS[current_macbook_index], GPIO.HIGH)
         print('LED1 on')
 
     # Initialize previous acceleration values
@@ -189,7 +194,7 @@ async def main():
                     # Switch to the next MacBook
                     if websocket:
                         await websocket.close()
-                        LEDS[current_macbook_index].off()
+                        GPIO.output(LED_PINS[current_macbook_index], GPIO.LOW)
                         print(f"Disconnected from {current_macbook['ip']}:{current_macbook['port']}")
 
                     # Update to next MacBook
@@ -201,7 +206,7 @@ async def main():
                     # Connect to the next MacBook
                     websocket = await connect_to_device(uri)
                     if websocket:
-                        LEDS[current_macbook_index].on()
+                        GPIO.output(LED_PINS[current_macbook_index], GPIO.HIGH)
                 else:
                     # Send the gesture to the current MacBook
                     if websocket:
@@ -228,8 +233,8 @@ async def main():
             await websocket.close()
     except Exception as e:
         print(f"An error occurred: {e}")
-        for led in LEDS:
-            led.off()
+        for pin in LED_PINS:
+            GPIO.output(pin, GPIO.LOW)
         if websocket:
             await websocket.close()
 
