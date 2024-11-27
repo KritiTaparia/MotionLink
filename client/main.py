@@ -5,13 +5,12 @@ from smbus2 import SMBus
 from collections import deque
 import pickle
 
-# MPU-6050 Registers
+# MPU-6050 Registers and addresses
 PWR_MGMT_1   = 0x6B
 ACCEL_XOUT_H = 0x3B
 GYRO_XOUT_H  = 0x43
 
-# MPU-6050 I2C address
-DEVICE_ADDRESS = 0x68
+DEVICE_ADDRESS = 0x68  # MPU-6050 I2C address
 
 def MPU_Init(bus):
     # Initialize MPU6050
@@ -68,26 +67,26 @@ def main():
         # Load the TensorFlow Lite model
         interpreter = tf.lite.Interpreter(model_path="gesture_recognition_model.tflite")
         interpreter.allocate_tensors()
+
+        # Get input and output details
         input_details = interpreter.get_input_details()
         output_details = interpreter.get_output_details()
 
-        # Load the scaler
+        # Load the scaler and label encoder
         with open('scaler.pkl', 'rb') as f:
             scaler = pickle.load(f)
-
-        # Load the label encoder
         with open('label_encoder.pkl', 'rb') as f:
             label_encoder = pickle.load(f)
         gestures = label_encoder.classes_
 
-        window_size = 20  # Must match the window size used during training
-        data_window = deque(maxlen=window_size)
+        seq_length = 100  # Must match the sequence length used during training
         num_features = 6  # Number of features
+        data_sequence = []
 
         # Parameters for cooldown and confidence threshold
         cooldown_time = 1.0  # Time in seconds to wait after detecting a gesture
-        last_detection_time = time.time() - cooldown_time  # Initialize to allow immediate detection
-        confidence_threshold = 0.7  # Minimum confidence to consider a detection valid
+        last_detection_time = time.time() - cooldown_time
+        confidence_threshold = 0.7
 
         try:
             print("Starting real-time gesture detection. Press Ctrl+C to exit.")
@@ -109,12 +108,12 @@ def main():
                 gyro_z_cal = gyro_z - gyro_bias['z']
 
                 # Convert to physical units
-                acc_x_g = acc_x_cal / 16384.0
-                acc_y_g = acc_y_cal / 16384.0
-                acc_z_g = acc_z_cal / 16384.0
-                gyro_x_dps = gyro_x_cal / 131.0
-                gyro_y_dps = gyro_y_cal / 131.0
-                gyro_z_dps = gyro_z_cal / 131.0
+                acc_x_g = acc_x_cal # 16384.0
+                acc_y_g = acc_y_cal # 16384.0
+                acc_z_g = acc_z_cal # 16384.0
+                gyro_x_dps = gyro_x_cal # 131.0
+                gyro_y_dps = gyro_y_cal # 131.0
+                gyro_z_dps = gyro_z_cal # 131.0
 
                 # Create data array
                 data = [acc_x_g, acc_y_g, acc_z_g, gyro_x_dps, gyro_y_dps, gyro_z_dps]
@@ -123,31 +122,33 @@ def main():
                 # Standardize data using the scaler
                 data_scaled = scaler.transform(data)
 
-                # Append data to window
-                data_window.append(data_scaled.flatten())
+                # Append data to sequence
+                data_sequence.append(data_scaled.flatten())
 
-                current_time = time.time()
-                # Check if cooldown period has passed
-                if len(data_window) == window_size and (current_time - last_detection_time) >= cooldown_time:
-                    # Prepare input tensor
-                    input_data = np.array(data_window)
-                    input_data = input_data.reshape(1, window_size, num_features).astype(np.float32)
+                if len(data_sequence) == seq_length:
+                    current_time = time.time()
+                    if (current_time - last_detection_time) >= cooldown_time:
+                        # Prepare input tensor
+                        input_data = np.array(data_sequence)
+                        input_data = input_data.reshape(1, seq_length, num_features).astype(np.float32)
 
-                    interpreter.set_tensor(input_details[0]['index'], input_data)
-                    interpreter.invoke()
-                    output_data = interpreter.get_tensor(output_details[0]['index'])
-                    predicted_label = np.argmax(output_data)
-                    confidence = output_data[0][predicted_label]
+                        interpreter.set_tensor(input_details[0]['index'], input_data)
+                        interpreter.invoke()
+                        output_data = interpreter.get_tensor(output_details[0]['index'])
+                        predicted_label = np.argmax(output_data)
+                        confidence = output_data[0][predicted_label]
 
-                    if confidence > confidence_threshold:
-                        gesture_name = gestures[predicted_label]
-                        print(f"Gesture Detected: {gesture_name} (Confidence: {confidence:.2f})")
-                        last_detection_time = current_time  # Update the last detection time
-                        # Clear the window to avoid overlapping predictions
-                        data_window.clear()
-                    else:
-                        # Optionally, do not print anything if confidence is low
-                        pass
+                        if confidence > confidence_threshold:
+                            gesture_name = gestures[predicted_label]
+                            print(f"Gesture Detected: {gesture_name} (Confidence: {confidence:.2f})")
+                            print(output_data, gestures)
+                            last_detection_time = current_time
+                        else:
+                            # Optionally, do not print anything if confidence is low
+                            print(output_data, gestures)
+
+                    # Clear the sequence for the next detection
+                    data_sequence = []
                 time.sleep(0.02)
         except KeyboardInterrupt:
             print("\nExiting...")

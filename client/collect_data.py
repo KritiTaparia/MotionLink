@@ -68,7 +68,7 @@ def calibrate_sensors(bus, num_samples=2000):
     print("Calibration complete.")
     return accel_bias, gyro_bias
 
-def collect_gesture_data(bus, accel_bias, gyro_bias, gesture_name, num_attempts=10, num_readings=100, sample_rate=0.02):
+def collect_gesture_data(bus, accel_bias, gyro_bias, gesture_name, num_attempts=10, num_readings=100, sample_rate=0.01):
     all_data = []
     for attempt in range(num_attempts):
         input(f"Prepare to perform '{gesture_name}' - Attempt {attempt + 1}/{num_attempts}. Press Enter when ready.")
@@ -93,12 +93,12 @@ def collect_gesture_data(bus, accel_bias, gyro_bias, gesture_name, num_attempts=
             gyro_z_cal = gyro_z - gyro_bias['z']
 
             # Convert to physical units
-            acc_x_g = acc_x_cal / 16384.0
-            acc_y_g = acc_y_cal / 16384.0
-            acc_z_g = acc_z_cal / 16384.0
-            gyro_x_dps = gyro_x_cal / 131.0
-            gyro_y_dps = gyro_y_cal / 131.0
-            gyro_z_dps = gyro_z_cal / 131.0
+            acc_x_g = acc_x_cal 
+            acc_y_g = acc_y_cal
+            acc_z_g = acc_z_cal 
+            gyro_x_dps = gyro_x_cal 
+            gyro_y_dps = gyro_y_cal 
+            gyro_z_dps = gyro_z_cal 
 
             # Append data point
             data.extend([acc_x_g, acc_y_g, acc_z_g, gyro_x_dps, gyro_y_dps, gyro_z_dps])
