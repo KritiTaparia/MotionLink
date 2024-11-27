@@ -15,11 +15,10 @@ MACBOOK_SERVERS = [
         "ip": "192.168.0.110",  # Replace with MacBook1's IP
         "port": 6789
     },
-    # {
-    #     "ip": "192.168.1.101",  # Replace with MacBook2's IP
-    #     "port": 6789
-    # },
-    # Add more MacBooks as needed
+    {
+        "ip": "192.168.0.172",  # Replace with MacBook1's IP
+        "port": 6789
+    },
 ]
 
 # Initialize I2C bus
