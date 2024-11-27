@@ -1,8 +1,10 @@
+from tkinter.constants import ON
 import asyncio
 import websockets
 import json
 import time
 from smbus2 import SMBus
+from gpiozero import LED
 
 # MPU-6050 Registers
 PWR_MGMT_1   = 0x6B
@@ -24,6 +26,7 @@ MACBOOK_SERVERS = [
 
 # Initialize I2C bus
 bus = SMBus(1)  # 1 indicates /dev/i2c-1
+LEDS = [LED(11)], LED(13)]
 
 def MPU_Init():
     """
@@ -116,6 +119,7 @@ async def main():
     if not macbook_list:
         print("No MacBooks configured in the MACBOOK_SERVERS list.")
         return
+    
 
     # Define thresholds for gesture detection (adjust as needed)
     threshold = 1  # Threshold in g units
@@ -126,6 +130,8 @@ async def main():
     current_macbook = macbook_list[current_macbook_index]
     uri = f"ws://{current_macbook['ip']}:{current_macbook['port']}"
     websocket = await connect_to_device(uri)
+    if websocket:
+        LEDS[current_macbook_index].on()
 
     # Initialize previous acceleration values
     prev_acc_x = 0
@@ -183,6 +189,7 @@ async def main():
                     # Switch to the next MacBook
                     if websocket:
                         await websocket.close()
+                        LEDS[current_macbook_index].off()
                         print(f"Disconnected from {current_macbook['ip']}:{current_macbook['port']}")
 
                     # Update to next MacBook
@@ -193,6 +200,8 @@ async def main():
 
                     # Connect to the next MacBook
                     websocket = await connect_to_device(uri)
+                    if websocket:
+                        LEDS[current_macbook_index].on()
                 else:
                     # Send the gesture to the current MacBook
                     if websocket:
@@ -219,6 +228,8 @@ async def main():
             await websocket.close()
     except Exception as e:
         print(f"An error occurred: {e}")
+        for led in LEDS:
+            led.off()
         if websocket:
             await websocket.close()
 
