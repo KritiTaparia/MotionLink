@@ -25,7 +25,7 @@ MACBOOK_SERVERS = [
 
 # Initialize I2C bus
 bus = SMBus(1)  # 1 indicates /dev/i2c-1
-LEDS = [LED(11)], LED(13)]
+LEDS = [LED(11), LED(13)]
 
 def MPU_Init():
     """
@@ -131,6 +131,7 @@ async def main():
     websocket = await connect_to_device(uri)
     if websocket:
         LEDS[current_macbook_index].on()
+        print('LED1 on')
 
     # Initialize previous acceleration values
     prev_acc_x = 0
