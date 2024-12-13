@@ -40,7 +40,7 @@ def sensor():
         sensor_readings[:] = [reading for reading in sensor_readings if reading['timestamp'] > cutoff_time]
 
         if label:
-            gesture_log.add((timestamp, label))
+            gesture_log.add((timestamp.strftime("%Y-%m-%d %H:%M:%S"), label))
 
         return jsonify({"message": "Sensor data received"}), 200
 
