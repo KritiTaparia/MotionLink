@@ -110,13 +110,39 @@ async def connect_to_device(uri):
         print(f"Failed to connect to {uri}: {e}")
         return None
 
-def send_sensor_readings(ax, ay, az):
-    SERVER_URL = 'http://localhost:6969/sensor'
-    requests.post(SERVER_URL, data={
-        'ax': ax,
-        'ay': ay,
-        'az': az,
-    })
+# Global variable to track the last request time
+last_request_time = 0
+RATE_LIMIT_INTERVAL = 1  # Minimum time interval (in seconds) between requests
+SERVER_URL = 'http://localhost:6969'
+
+def send_sensor_readings(ax, ay, az, gesture):
+    global last_request_time
+    current_time = time.time()
+
+    # Check if the interval since the last request is less than the rate limit
+    # if current_time - last_request_time < RATE_LIMIT_INTERVAL:
+    #     print("Rate limit exceeded. Skipping this request.")
+    #     return
+
+    try:
+        response = requests.post(SERVER_URL + '/sensor', json={
+            'ax': ax,
+            'ay': ay,
+            'az': az,
+            'label': gesture
+        })
+        last_request_time = current_time  # Update the last request time
+        print(response)
+    except Exception as e:
+        print('Error:', e)
+    
+def switch_device():
+    try:
+        response = requests.post(SERVER_URL + '/switch_device')
+        print(response)
+    except Exception as e:
+        print('Error:', e)
+    
 
 async def main():
     # Initialize and calibrate the MPU6050 sensor
@@ -165,8 +191,7 @@ async def main():
             acc_y_g = acc_y / 16384.0
             acc_z_g = acc_z / 16384.0
             print('AX = ', acc_x_g, 'AY = ', acc_y_g, 'AZ = ', acc_z_g) 
-            print(send_sensor_readings())
-            
+
             gyro_x_dps = gyro_x / 131.0  # For ±250°/s
             gyro_y_dps = gyro_y / 131.0
             gyro_z_dps = gyro_z / 131.0
@@ -200,6 +225,7 @@ async def main():
             if gesture_magnitudes and (current_time - last_gesture_time) > gesture_cooldown:
                 gesture = max(gesture_magnitudes, key=gesture_magnitudes.get)
                 print(f"Detected gesture: {gesture}")
+                send_sensor_readings(acc_x_g, acc_y_g, acc_z_g, gesture)
 
                 if gesture == "down":
                     # Switch to the next MacBook
@@ -213,7 +239,8 @@ async def main():
                     current_macbook = macbook_list[current_macbook_index]
                     uri = f"ws://{current_macbook['ip']}:{current_macbook['port']}"
                     print(f"Switching to MacBook{current_macbook_index +1}: {current_macbook['ip']}:{current_macbook['port']}")
-
+                    switch_device()
+                    
                     # Connect to the next MacBook
                     websocket = await connect_to_device(uri)
                     if websocket:
@@ -230,6 +257,8 @@ async def main():
 
                 # Update last gesture time
                 last_gesture_time = current_time
+            else:
+                send_sensor_readings(acc_x_g, acc_y_g, acc_z_g, '')
 
             # Update previous acceleration values
             prev_acc_x = acc_x_g
@@ -251,4 +280,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 

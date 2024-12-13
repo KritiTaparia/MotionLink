@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MotionLink</title>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #log {
+            width: 100%;
+            height: 200px;
+            border: 1px solid #ccc;
+            overflow-y: scroll;
+            padding: 10px;
+            background-color: #f9f9f9;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+        }
+        .device-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .device-list li {
+            padding: 5px 10px;
+            margin-bottom: 5px;
+            border: 1px solid #ccc;
+        }
+        .device-list .active {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>MotionLink Admin UI</h1>
+    <h2>Connected Devices</h2>
+    <ul id="devices" class="device-list"></ul>
+
+    <div id="container" style="width: 100%; height: 400px;"></div>
+    <h2>Gesture Log</h2>
+    <div id="log"></div>
+
+    <script>
+        $(document).ready(function () {
+            Highcharts.chart('container', {
+                chart: { type: 'line' },
+                title: { text: 'Sensor Readings (MPU6050)' },
+                xAxis: { type: 'datetime', title: { text: 'Time' } },
+                yAxis: { title: { text: 'Sensor Values' } },
+                series: [
+                    { name: 'ax', data: [], color: '#FF5733' },
+                    { name: 'ay', data: [], color: '#33FF57' },
+                    { name: 'az', data: [], color: '#3357FF' }
+                ]
+            });
+
+            const chart = Highcharts.charts[0];
+
+            function fetchSensorData() {
+                $.getJSON('/data', function (data) {
+                    const ax = [];
+                    const ay = [];
+                    const az = [];
+                    const devices = data.devices;
+                    const currentDevice = data.current_device;
+
+                    // Update the devices list
+                    $('#devices').empty();
+                    devices.forEach((device, index) => {
+                        const className = index === currentDevice ? 'active' : '';
+                        $('#devices').append(`<li class="${className}">${device}</li>`);
+                    });
+
+                    data.readings.forEach(reading => {
+                        const timestamp = new Date(reading.timestamp).getTime();
+                        const label = reading.label;
+
+                        ax.push([timestamp, reading.ax]);
+                        ay.push([timestamp, reading.ay]);
+                        az.push([timestamp, reading.az]);
+
+                        // Add gesture to the log if not already present
+                        if (label && !$(`#log div:contains(${label})`).length) {
+                            const formattedTime = new Date(reading.timestamp).toLocaleTimeString();
+                            const logEntry = `<div class="log-entry"><b>${formattedTime}:</b> ${label}</div>`;
+                            $('#log').append(logEntry);
+                            $('#log').scrollTop($('#log')[0].scrollHeight);
+                        }
+                    });
+
+                    chart.series[0].setData(ax, true);
+                    chart.series[1].setData(ay, true);
+                    chart.series[2].setData(az, true);
+                });
+            }
+
+            // Set up SSE for device updates
+            const eventSource = new EventSource('/device_updates');
+            eventSource.onmessage = function (event) {
+                fetchSensorData(); // Refresh devices list dynamically
+            };
+
+            setInterval(fetchSensorData, 1000);
+        });
+    </script>
+</body>
+</html>
+
