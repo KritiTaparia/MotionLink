@@ -83,14 +83,6 @@
                         ax.push([timestamp, reading.ax]);
                         ay.push([timestamp, reading.ay]);
                         az.push([timestamp, reading.az]);
-
-                        // Add gesture to the log if not already present
-                        if (label && !$(`#log div:contains(${label})`).length) {
-                            const formattedTime = new Date(reading.timestamp).toLocaleTimeString();
-                            const logEntry = `<div class="log-entry"><b>${formattedTime}:</b> ${label}</div>`;
-                            $('#log').append(logEntry);
-                            $('#log').scrollTop($('#log')[0].scrollHeight);
-                        }
                     });
 
                     data.gestures.forEach(gesture => {
