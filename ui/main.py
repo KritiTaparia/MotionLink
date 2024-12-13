@@ -63,7 +63,7 @@ def data():
             'label': reading['label']
         } for reading in filtered_readings
     ]
-    return jsonify({"readings": formatted_readings, "gestures": sorted(list(gesture_log), key=lambda x: (-x[0])), "current_device": current_device_index, "devices": connected_devices})
+    return jsonify({"readings": formatted_readings, "gestures": sorted(list(gesture_log), reverse=True), "current_device": current_device_index, "devices": connected_devices})
 
 @app.route('/switch_device', methods=['POST'])
 def switch_device():
