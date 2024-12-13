@@ -39,8 +39,8 @@ def sensor():
         cutoff_time = datetime.datetime.now() - datetime.timedelta(minutes=2)
         sensor_readings[:] = [reading for reading in sensor_readings if reading['timestamp'] > cutoff_time]
 
-        if label and label not in gesture_log:
-            gesture_log.add(label)
+        if label:
+            gesture_log.add((timestamp, label))
 
         return jsonify({"message": "Sensor data received"}), 200
 
@@ -63,7 +63,7 @@ def data():
             'label': reading['label']
         } for reading in filtered_readings
     ]
-    return jsonify({"readings": formatted_readings, "gestures": list(gesture_log), "current_device": current_device_index, "devices": connected_devices})
+    return jsonify({"readings": formatted_readings, "gestures": sorted(list(gesture_log), key=lambda x: (-x[0])), "current_device": current_device_index, "devices": connected_devices})
 
 @app.route('/switch_device', methods=['POST'])
 def switch_device():

@@ -93,6 +93,16 @@
                         }
                     });
 
+                    data.gestures.forEach(gesture => {
+                        const timestamp = new Date(gesture[0]).getTime();
+                        const label = gesture[1];
+
+                        const formattedTime = new Date(gesture[0]).toLocaleTimeString();
+                        const logEntry = `<div class="log-entry"><b>${formattedTime}:</b> ${label}</div>`;
+                        $('#log').append(logEntry);
+                        $('#log').scrollTop($('#log')[0].scrollHeight);
+                    });
+
                     chart.series[0].setData(ax, true);
                     chart.series[1].setData(ay, true);
                     chart.series[2].setData(az, true);
