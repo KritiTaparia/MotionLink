@@ -4,7 +4,6 @@ import websockets
 import json
 import time
 from smbus2 import SMBus
-from gpiozero import LED
 import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BCM)
@@ -28,7 +27,7 @@ MACBOOK_SERVERS = [
 
 # Initialize I2C bus
 bus = SMBus(1)  # 1 indicates /dev/i2c-1
-LED_PINS = [11, 13]
+LED_PINS = [18, 13]
 for pin in LED_PINS:
     GPIO.setup(pin, GPIO.OUT)
 
