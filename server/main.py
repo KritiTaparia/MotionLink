@@ -4,24 +4,20 @@ from pynput.keyboard import Controller, Key
 import json
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize the keyboard controller
 keyboard = Controller()
 
-# Define the server's IP and port
-SERVER_HOST = '0.0.0.0'  # Listen on all available interfaces
-SERVER_PORT = 6789       # Choose a port (ensure it's open and not blocked)
+SERVER_HOST = '0.0.0.0'  
+SERVER_PORT = 6789       
 
-# Mapping gestures to keyboard keys
 GESTURE_KEY_MAPPING = {
         "up": "up",
         "down": "down",
         "left": "left",
         "right": "right",
-        "idle": None  # No action for idle
+        "idle": None  
 }
 
 async def handle_connection(websocket):
@@ -29,12 +25,11 @@ async def handle_connection(websocket):
     try:
         async for message in websocket:
             logger.info(f"Received message: {message}")
-            # Assuming the message is a JSON string with a 'gesture' field
             try:
                 data = json.loads(message)
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decoding failed: {e}")
-                continue  # Skip processing this message
+                continue  
 
             gesture = data.get("gesture")
             if gesture in GESTURE_KEY_MAPPING:
@@ -54,7 +49,6 @@ def simulate_key_press(key):
     Simulate a keyboard key press using pynput.
     """
     try:
-        # Handle special keys
         if key in ['up', 'down', 'left', 'right']:
             if key == 'up':
                 key = 'space'
@@ -62,7 +56,6 @@ def simulate_key_press(key):
             keyboard.press(key_to_press)
             keyboard.release(key_to_press)
         else:
-            # For regular keys
             keyboard.press(key)
             keyboard.release(key)
         logger.info(f"Key '{key}' simulated successfully.")
@@ -73,7 +66,7 @@ async def main():
     try:
         async with websockets.serve(handle_connection, SERVER_HOST, SERVER_PORT):
             logger.info(f"WebSocket Server started on {SERVER_HOST}:{SERVER_PORT}")
-            await asyncio.Future()  # Run forever
+            await asyncio.Future()  
     except Exception as e:
         logger.critical(f"Server encountered a critical error: {e}")
 

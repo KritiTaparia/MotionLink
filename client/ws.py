@@ -9,25 +9,22 @@ import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BCM)
 
-# MPU-6050 Registers
 PWR_MGMT_1   = 0x6B
 ACCEL_XOUT_H = 0x3B
 GYRO_XOUT_H  = 0x43
 
-# WebSocket Server details for each MacBook
 MACBOOK_SERVERS = [
     {
-        "ip": "192.168.0.110",  # Replace with MacBook1's IP
+        "ip": "192.168.0.110",  
         "port": 6789
     },
     {
-        "ip": "192.168.0.172",  # Replace with MacBook1's IP
+        "ip": "192.168.0.172",  
         "port": 6789
     },
 ]
 
-# Initialize I2C bus
-bus = SMBus(1)  # 1 indicates /dev/i2c-1
+bus = SMBus(1)  
 LED_PINS = [18, 13]
 for pin in LED_PINS:
     GPIO.setup(pin, GPIO.OUT)
@@ -46,7 +43,6 @@ def read_raw_data(addr):
     high = bus.read_byte_data(0x68, addr)
     low = bus.read_byte_data(0x68, addr + 1)
     value = (high << 8) | low
-    # Convert to signed integer
     if value > 32767:
         value -= 65536
     return value
@@ -74,14 +70,12 @@ def calibrate_sensors(num_samples=2000):
         gyro_bias['y'] += gyro_y
         gyro_bias['z'] += gyro_z
 
-        time.sleep(0.001)  # 1ms delay
+        time.sleep(0.001) 
 
-    # Average the biases
     accel_bias = {k: v / num_samples for k, v in accel_bias.items()}
     gyro_bias = {k: v / num_samples for k, v in gyro_bias.items()}
 
-    # Adjust Z-axis accelerometer bias for gravity (+1g)
-    accel_bias['z'] -= 16384  # For ±2g scale
+    accel_bias['z'] -= 16384  
 
     print("Calibration complete.")
     return accel_bias, gyro_bias
@@ -110,9 +104,8 @@ async def connect_to_device(uri):
         print(f"Failed to connect to {uri}: {e}")
         return None
 
-# Global variable to track the last request time
 last_request_time = 0
-RATE_LIMIT_INTERVAL = 1  # Minimum time interval (in seconds) between requests
+RATE_LIMIT_INTERVAL = 1 
 SERVER_URL = 'http://localhost:6969'
 
 def send_sensor_readings(ax, ay, az, gesture):
@@ -131,7 +124,7 @@ def send_sensor_readings(ax, ay, az, gesture):
             'az': az,
             'label': gesture
         })
-        last_request_time = current_time  # Update the last request time
+        last_request_time = current_time  
         print(response)
     except Exception as e:
         print('Error:', e)
@@ -145,11 +138,9 @@ def switch_device():
     
 
 async def main():
-    # Initialize and calibrate the MPU6050 sensor
     MPU_Init()
     accel_bias, gyro_bias = calibrate_sensors()
 
-    # List of MacBooks
     macbook_list = MACBOOK_SERVERS
     current_macbook_index = 0
     total_macbooks = len(macbook_list)
@@ -159,12 +150,10 @@ async def main():
         return
     
 
-    # Define thresholds for gesture detection (adjust as needed)
-    threshold = 1  # Threshold in g units
+    threshold = 1  
     last_gesture_time = 0
-    gesture_cooldown = 1.5  # seconds
+    gesture_cooldown = 1.5  
 
-    # Establish initial connection
     current_macbook = macbook_list[current_macbook_index]
     uri = f"ws://{current_macbook['ip']}:{current_macbook['port']}"
     websocket = await connect_to_device(uri)
@@ -172,13 +161,11 @@ async def main():
         GPIO.output(LED_PINS[current_macbook_index], GPIO.HIGH)
         print('LED1 on')
 
-    # Initialize previous acceleration values
     prev_acc_x = 0
-    prev_acc_z = 1  # Initialized to 1 to avoid division by zero
+    prev_acc_z = 1  
 
     try:
         while True:
-            # Read sensor data
             acc_x = read_raw_data(ACCEL_XOUT_H) - accel_bias['x']
             acc_y = read_raw_data(ACCEL_XOUT_H + 2) - accel_bias['y']
             acc_z = read_raw_data(ACCEL_XOUT_H + 4) - accel_bias['z']
@@ -186,67 +173,55 @@ async def main():
             gyro_y = read_raw_data(GYRO_XOUT_H + 2) - gyro_bias['y']
             gyro_z = read_raw_data(GYRO_XOUT_H + 4) - gyro_bias['z']
 
-            # Convert raw data to 'g' and 'deg/s'
-            acc_x_g = acc_x / 16384.0  # For ±2g
+            acc_x_g = acc_x / 16384.0  
             acc_y_g = acc_y / 16384.0
             acc_z_g = acc_z / 16384.0
             print('AX = ', acc_x_g, 'AY = ', acc_y_g, 'AZ = ', acc_z_g) 
 
-            gyro_x_dps = gyro_x / 131.0  # For ±250°/s
+            gyro_x_dps = gyro_x / 131.0  
             gyro_y_dps = gyro_y / 131.0
             gyro_z_dps = gyro_z / 131.0
 
             current_time = time.time()
 
-            # Calculate differences
             delta_acc_x = prev_acc_x - acc_x_g
             delta_acc_z = prev_acc_z - acc_z_g
 
-            # Initialize gesture magnitudes
             gesture_magnitudes = {}
 
-            # Detect Left Swipe
             if delta_acc_x > 2 * threshold:
                 gesture_magnitudes['left'] = delta_acc_x
 
-            # Detect Right Swipe
             if delta_acc_x < -2 * threshold:
                 gesture_magnitudes['right'] = -delta_acc_x
 
-            # Detect Up Swipe
             if delta_acc_z > 2 * threshold:
                 gesture_magnitudes['up'] = delta_acc_z
 
-            # Detect Down Swipe
             if delta_acc_z < -2 * threshold:
                 gesture_magnitudes['down'] = -delta_acc_z
 
-            # Detect and handle gestures
             if gesture_magnitudes and (current_time - last_gesture_time) > gesture_cooldown:
                 gesture = max(gesture_magnitudes, key=gesture_magnitudes.get)
                 print(f"Detected gesture: {gesture}")
                 send_sensor_readings(acc_x_g, acc_y_g, acc_z_g, gesture)
 
                 if gesture == "down":
-                    # Switch to the next MacBook
                     if websocket:
                         await websocket.close()
                         GPIO.output(LED_PINS[current_macbook_index], GPIO.LOW)
                         print(f"Disconnected from {current_macbook['ip']}:{current_macbook['port']}")
 
-                    # Update to next MacBook
                     current_macbook_index = (current_macbook_index + 1) % total_macbooks
                     current_macbook = macbook_list[current_macbook_index]
                     uri = f"ws://{current_macbook['ip']}:{current_macbook['port']}"
                     print(f"Switching to MacBook{current_macbook_index +1}: {current_macbook['ip']}:{current_macbook['port']}")
                     switch_device()
                     
-                    # Connect to the next MacBook
                     websocket = await connect_to_device(uri)
                     if websocket:
                         GPIO.output(LED_PINS[current_macbook_index], GPIO.HIGH)
                 else:
-                    # Send the gesture to the current MacBook
                     if websocket:
                         await send_gesture(websocket, gesture)
                     else:
@@ -255,17 +230,14 @@ async def main():
                         if websocket:
                             await send_gesture(websocket, gesture)
 
-                # Update last gesture time
                 last_gesture_time = current_time
             else:
                 send_sensor_readings(acc_x_g, acc_y_g, acc_z_g, '')
 
-            # Update previous acceleration values
             prev_acc_x = acc_x_g
             prev_acc_z = acc_z_g
 
-            # Sleep before next iteration
-            await asyncio.sleep(0.1)  # Adjust the sleep time as needed
+            await asyncio.sleep(0.1)  
 
     except KeyboardInterrupt:
         print("\nExiting...")
@@ -280,5 +252,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
