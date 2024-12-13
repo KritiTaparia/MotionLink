@@ -106,7 +106,7 @@ async def connect_to_device(uri):
 
 last_request_time = 0
 RATE_LIMIT_INTERVAL = 1 
-SERVER_URL = 'http://localhost:6969'
+SERVER_URL = 'http://100.24.73.28:6969'
 
 def send_sensor_readings(ax, ay, az, gesture):
     global last_request_time
