@@ -3,6 +3,7 @@ import asyncio
 import websockets
 import json
 import time
+import requests
 from smbus2 import SMBus
 import RPi.GPIO as GPIO
 
@@ -109,6 +110,14 @@ async def connect_to_device(uri):
         print(f"Failed to connect to {uri}: {e}")
         return None
 
+def send_sensor_readings(ax, ay, az):
+    SERVER_URL = 'http://localhost:6969/sensor'
+    requests.post(SERVER_URL, data={
+        'ax': ax,
+        'ay': ay,
+        'az': az,
+    })
+
 async def main():
     # Initialize and calibrate the MPU6050 sensor
     MPU_Init()
@@ -155,6 +164,9 @@ async def main():
             acc_x_g = acc_x / 16384.0  # For ±2g
             acc_y_g = acc_y / 16384.0
             acc_z_g = acc_z / 16384.0
+            print('AX = ', acc_x_g, 'AY = ', acc_y_g, 'AZ = ', acc_z_g) 
+            print(send_sensor_readings())
+            
             gyro_x_dps = gyro_x / 131.0  # For ±250°/s
             gyro_y_dps = gyro_y / 131.0
             gyro_z_dps = gyro_z / 131.0
