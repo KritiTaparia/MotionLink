@@ -85,6 +85,7 @@
                         az.push([timestamp, reading.az]);
                     });
 
+                    $('#log').empty();
                     data.gestures.forEach(gesture => {
                         const timestamp = new Date(gesture[0]).getTime();
                         const label = gesture[1];
